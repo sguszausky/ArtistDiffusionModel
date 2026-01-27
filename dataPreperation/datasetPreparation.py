@@ -1,8 +1,10 @@
 from PIL import Image
 from pathlib import Path
 import time
+import os
+from openpyxl import Workbook
 
-validEndings = {".jpg", ".jpeg", ".png", ".webp"}
+validEndings = {".jpg", ".jpeg", ".png"}
 
 def imageTooSmall(img_path: Path, minWidth: int, minHeight: int) -> tuple[bool, int, int]:
     with Image.open(img_path) as img:
@@ -123,3 +125,54 @@ def cropBottomPercent(imageDir: str,outDir: str,cropPercent: float,overwrite: bo
     print("Skipped:", skipped)
     print("Failed:", failed)
     print("Output:", out_dir)
+
+
+def numberImagesandCreateDict(folder: str, excel_name: str = "mapping.xlsx", start_index: int = 1):
+
+    folder_path = Path(folder).expanduser().resolve()
+    if not folder_path.is_dir():
+        raise NotADirectoryError(f"Folder not found: {folder_path}")
+
+    images = sorted(
+        [p for p in folder_path.iterdir() if p.is_file() and p.suffix.lower() in validEndings],
+        key=lambda p: p.name.lower()
+    )
+
+    if not images:
+        print("No images found.")
+        return None
+
+    targets = []
+    idx = start_index
+    for p in images:
+        new_name = f"{idx}{p.suffix.lower()}"
+        targets.append((p, folder_path / new_name))
+        idx += 1
+
+    temp_pairs = []
+    for i, (src, _) in enumerate(targets, start=1):
+        tmp = src.with_name(f"__tmp_rename__{i}__{src.name}")
+        temp_pairs.append((src, tmp))
+
+    for src, tmp in temp_pairs:
+        os.rename(src, tmp)
+
+    mapping_rows = []
+    for (orig_src, final_dst), (_, tmp_src) in zip(targets, temp_pairs):
+        os.rename(tmp_src, final_dst)
+        mapping_rows.append((orig_src.name, final_dst.name))
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "mapping"
+    ws.append(["original_name", "new_name"])
+    for row in mapping_rows:
+        ws.append(list(row))
+
+    excel_out = folder_path / excel_name
+    wb.save(excel_out)
+
+    print(f"Renamed {len(mapping_rows)} images.")
+    print(f"Mapping saved to: {excel_out}")
+    return excel_out
+
