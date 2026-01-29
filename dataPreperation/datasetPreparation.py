@@ -3,8 +3,86 @@ from pathlib import Path
 import time
 import os
 from openpyxl import Workbook
+from openpyxl import load_workbook
+import shutil
+import re
+
 
 validEndings = {".jpg", ".jpeg", ".png"}
+
+
+def isChecked(v) -> bool:
+    if v is None:
+        return False
+    if isinstance(v, bool):
+        return v
+    if isinstance(v, (int, float)):
+        return v != 0
+    s = str(v).strip().lower()
+    return s in {"true", "wahr", "1", "x", "yes", "ja", "checked"}
+
+
+def safeFilename(stem: str) -> str:
+    stem = stem.strip()
+    stem = re.sub(r'[<>:"/\\|?*\x00-\x1F]', "_", stem)
+    stem = stem.rstrip(". ")
+    return stem or "unnamed"
+
+
+def excelTowsToTxt(
+    xlsx_path: str | Path,
+    sheet_name: str | None = None,
+    image_col: str = "image_name",
+    base_col: str = "caption_base",
+    sep: str = ", ",
+) -> int:
+    xlsx_path = Path(xlsx_path)
+    out_dir = xlsx_path.parent / "captions"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    wb = load_workbook(xlsx_path, data_only=True)
+    ws = wb[sheet_name] if sheet_name else wb.active
+
+    # Read header row (row 1)
+    headers = [c.value for c in ws[1]]
+    if image_col not in headers or base_col not in headers:
+        raise ValueError(
+            f"Missing required columns. Found: {headers}\n"
+            f"Need: '{image_col}' and '{base_col}'"
+        )
+
+    col_index = {name: i for i, name in enumerate(headers)}  # 0-based
+    image_i = col_index[image_col]
+    base_i = col_index[base_col]
+
+    checkbox_cols = [h for h in headers if h not in (image_col, base_col)]
+
+    written = 0
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        image_name = row[image_i]
+        base = row[base_i]
+
+        if image_name is None or str(image_name).strip() == "":
+            continue
+
+        stem = Path(str(image_name)).stem
+        txt_name = safeFilename(stem) + ".txt"
+
+        checked_headers = []
+        for h in checkbox_cols:
+            v = row[col_index[h]] if col_index[h] < len(row) else None
+            if isChecked(v):
+                checked_headers.append(str(h))
+
+        base_str = "" if base is None else str(base).strip()
+        caption = base_str
+        if checked_headers:
+            caption = (caption + sep if caption else "") + sep.join(checked_headers)
+
+        (out_dir / txt_name).write_text(caption, encoding="utf-8")
+        written += 1
+
+    return written
 
 def imageTooSmall(img_path: Path, minWidth: int, minHeight: int) -> tuple[bool, int, int]:
     with Image.open(img_path) as img:
@@ -67,6 +145,62 @@ def deleteImages(to_delete: list[dict],retries: int = 3,wait: float = 0.5,):
     print("Deleted:", deleted)
     print("Skipped:", locked)
 
+def moveImages(
+    to_move: list[dict],
+    dest_folder: str | Path,
+    retries: int = 3,
+    wait: float = 0.5,
+):
+    moved = 0
+    locked = 0
+    missing = 0
+
+    dest_folder = Path(dest_folder).expanduser().resolve()
+    dest_folder.mkdir(parents=True, exist_ok=True)
+
+    for item in to_move:
+        img_path: Path = item["path"]
+        w = item.get("width")
+        h = item.get("height")
+
+        if not img_path.exists():
+            missing += 1
+            continue
+
+        target_path = dest_folder / img_path.name
+
+        # Avoid overwriting if a file with same name already exists
+        if target_path.exists():
+            stem, suffix = img_path.stem, img_path.suffix
+            k = 1
+            while True:
+                candidate = dest_folder / f"{stem}_{k}{suffix}"
+                if not candidate.exists():
+                    target_path = candidate
+                    break
+                k += 1
+
+        for attempt in range(retries):
+            try:
+                shutil.move(str(img_path), str(target_path))
+                moved += 1
+                if w and h:
+                    print(f"Moved: {img_path.name} -> {target_path.name} ({w}×{h})")
+                else:
+                    print(f"Moved: {img_path.name} -> {target_path.name}")
+                break
+            except PermissionError:
+                if attempt < retries - 1:
+                    time.sleep(wait)
+                else:
+                    locked += 1
+                    print(f"Could not move: {img_path.name}, skipped (file locked?)")
+
+    print("\nResult")
+    print("Moved:", moved)
+    print("Skipped (locked):", locked)
+    print("Missing:", missing)
+
 
 def cropBottomPercent(imageDir: str,outDir: str,cropPercent: float,overwrite: bool = False,quality: int = 95):
     """
@@ -128,7 +262,6 @@ def cropBottomPercent(imageDir: str,outDir: str,cropPercent: float,overwrite: bo
 
 
 def numberImagesandCreateDict(folder: str, excel_name: str = "mapping.xlsx", start_index: int = 1):
-
     folder_path = Path(folder).expanduser().resolve()
     if not folder_path.is_dir():
         raise NotADirectoryError(f"Folder not found: {folder_path}")
@@ -145,7 +278,7 @@ def numberImagesandCreateDict(folder: str, excel_name: str = "mapping.xlsx", sta
     targets = []
     idx = start_index
     for p in images:
-        new_name = f"{idx}{p.suffix.lower()}"
+        new_name = f"img_{idx}{p.suffix.lower()}"   # <-- changed here
         targets.append((p, folder_path / new_name))
         idx += 1
 
