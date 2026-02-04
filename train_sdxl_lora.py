@@ -47,105 +47,28 @@ class TrainConfig:
     local_files_only: bool
 
 
-def _default_configs(preset: str) -> TrainConfig:
-    preset = preset.lower().strip()
+def smokeTestCfg() -> TrainConfig:
 
-    if preset == "smoke":
-        # Fast testing if training works
-        return TrainConfig(
-            preset="smoke",
-            model_id=os.getenv("MODEL_ID", "stabilityai/stable-diffusion-xl-base-1.0"),
-            dataset_root=os.getenv("DATASET_ROOT", str(Path("dataset") / "small_test")),
-            out_dir=os.getenv("OUT_DIR", str(Path("runs") / "smoke")),
-            resolution=int(os.getenv("RESOLUTION", "256")),
-            batch_size=int(os.getenv("BATCH_SIZE", "1")),
-            grad_accum=int(os.getenv("GRAD_ACCUM", "1")),
-            max_steps=int(os.getenv("MAX_STEPS", "30")),
-            lr=float(os.getenv("LR", "1e-4")),
-            weight_decay=float(os.getenv("WEIGHT_DECAY", "1e-2")),
-            mixed_precision=os.getenv("MIXED_PRECISION", "bf16" if torch.cuda.is_available() else "no"),
-            lora_rank=int(os.getenv("LORA_RANK", "4")),
-            lora_alpha=int(os.getenv("LORA_ALPHA", "4")),
-            center_crop=(os.getenv("CENTER_CROP", "1") == "1"),
-            num_workers=int(os.getenv("NUM_WORKERS", "0")),
-            save_every=int(os.getenv("SAVE_EVERY", "0")),  # 0 = only final
-            seed=int(os.getenv("SEED", "0")),
-            local_files_only=(os.getenv("HF_HUB_OFFLINE", "") == "1"),
-        )
-
-    if preset == "train":
-        # For ~50 images 1200-2000 steps
-        return TrainConfig(
-            preset="train",
-            model_id=os.getenv("MODEL_ID", "stabilityai/stable-diffusion-xl-base-1.0"),
-            dataset_root=os.getenv("DATASET_ROOT", str(Path("dataset") / "Edgar_Payne_all")),
-            out_dir=os.getenv("OUT_DIR", str(Path("runs") / "train")),
-            resolution=int(os.getenv("RESOLUTION", "1024")),
-            batch_size=int(os.getenv("BATCH_SIZE", "1")),
-            grad_accum=int(os.getenv("GRAD_ACCUM", "4")),
-            max_steps=int(os.getenv("MAX_STEPS", "1500")),
-            lr=float(os.getenv("LR", "1e-4")),
-            weight_decay=float(os.getenv("WEIGHT_DECAY", "1e-2")),
-            mixed_precision=os.getenv("MIXED_PRECISION", "bf16" if torch.cuda.is_available() else "no"),
-            lora_rank=int(os.getenv("LORA_RANK", "16")),
-            lora_alpha=int(os.getenv("LORA_ALPHA", "16")),
-            center_crop=(os.getenv("CENTER_CROP", "1") == "1"),
-            num_workers=int(os.getenv("NUM_WORKERS", "4")),
-            save_every=int(os.getenv("SAVE_EVERY", "250")),
-            seed=int(os.getenv("SEED", "0")),
-            local_files_only=(os.getenv("HF_HUB_OFFLINE", "") == "1"),
-        )
-
-    raise ValueError(f"Unknown preset: {preset} (use 'smoke' or 'train').")
-
-
-def parse_args() -> TrainConfig:
-    p = argparse.ArgumentParser()
-    p.add_argument("--preset", choices=["smoke", "train"], default=os.getenv("PRESET", "smoke"))
-
-    p.add_argument("--model_id", default=None)
-    p.add_argument("--dataset_root", default=None)
-    p.add_argument("--out_dir", default=None)
-
-    p.add_argument("--resolution", type=int, default=None)
-    p.add_argument("--batch_size", type=int, default=None)
-    p.add_argument("--grad_accum", type=int, default=None)
-    p.add_argument("--max_steps", type=int, default=None)
-    p.add_argument("--lr", type=float, default=None)
-    p.add_argument("--weight_decay", type=float, default=None)
-    p.add_argument("--mixed_precision", choices=["no", "fp16", "bf16"], default=None)
-
-    p.add_argument("--lora_rank", type=int, default=None)
-    p.add_argument("--lora_alpha", type=int, default=None)
-
-    p.add_argument("--center_crop", type=int, choices=[0, 1], default=None)
-    p.add_argument("--num_workers", type=int, default=None)
-    p.add_argument("--save_every", type=int, default=None)
-    p.add_argument("--seed", type=int, default=None)
-
-    p.add_argument("--local_files_only", type=int, choices=[0, 1], default=None)
-
-    a = p.parse_args()
-    cfg = _default_configs(a.preset)
-
-    # Apply overrides
-    for k in [
-        "model_id","dataset_root","out_dir","resolution","batch_size","grad_accum","max_steps",
-        "lr","weight_decay","mixed_precision","lora_rank","lora_alpha","num_workers","save_every","seed"
-    ]:
-        v = getattr(a, k)
-        if v is not None:
-            setattr(cfg, k, v)
-
-    if a.center_crop is not None:
-        cfg.center_crop = (a.center_crop == 1)
-
-    if a.local_files_only is not None:
-        cfg.local_files_only = (a.local_files_only == 1)
-
-    return cfg
-
-
+    return TrainConfig(
+        preset="smoke",
+        model_id=os.getenv("MODEL_ID", "stabilityai/stable-diffusion-xl-base-1.0"), #tiny-test model
+        dataset_root=os.getenv("DATASET_ROOT", str(Path("dataset") / "small_test")),
+        out_dir=os.getenv("OUT_DIR", str(Path("runs") / "smoke")),
+        resolution=int(os.getenv("RESOLUTION", "256")),
+        batch_size=int(os.getenv("BATCH_SIZE", "1")),
+        grad_accum=int(os.getenv("GRAD_ACCUM", "1")),
+        max_steps=int(os.getenv("MAX_STEPS", "30")),
+        lr=float(os.getenv("LR", "1e-4")),
+        weight_decay=float(os.getenv("WEIGHT_DECAY", "1e-2")),
+        mixed_precision=os.getenv("MIXED_PRECISION", "bf16" if torch.cuda.is_available() else "no"),
+        lora_rank=int(os.getenv("LORA_RANK", "4")),
+        lora_alpha=int(os.getenv("LORA_ALPHA", "4")),
+        center_crop=(os.getenv("CENTER_CROP", "1") == "1"),
+        num_workers=int(os.getenv("NUM_WORKERS", "0")),
+        save_every=int(os.getenv("SAVE_EVERY", "0")),
+        seed=int(os.getenv("SEED", "0")),
+        local_files_only=(os.getenv("HF_HUB_OFFLINE", "") == "1"),
+    )
 
 def _select_weight_dtype(accelerator: Accelerator) -> torch.dtype:
     if accelerator.device.type != "cuda":
@@ -171,8 +94,11 @@ def _save_checkpoint(
     print(f"[ckpt] saved: {ckpt_dir}")
 
 
-def main() -> None:
-    cfg = parse_args()
+def train(cfg: TrainConfig) -> None:
+
+    if cfg.preset == "smoke":
+        cfg = smokeTestCfg()
+
     out_dir = Path(cfg.out_dir).expanduser()
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -394,5 +320,3 @@ def main() -> None:
         print("done")
 
 
-if __name__ == "__main__":
-    main()

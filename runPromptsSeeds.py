@@ -8,6 +8,7 @@ from generateImageLora import generate_images_for_captions as gen_lora
 def main():
     prefixBase = "oil painting landscape,"
     prefixLora = "<EdgarAPayne>, oil painting landscape,"
+    loraPath = "./models/edgar_payne_lora/edgar_payne_lora.safetensors" # Path to LoRA model
 
     captions = [
         "riders at an alpine lake with snowy mountains in the background at sunset",
@@ -21,6 +22,7 @@ def main():
     ]
 
     seeds = [42, 1234, 2026, 7, 99, 555]
+    
     # Common generation settings
     common = dict(
         model_id="stabilityai/stable-diffusion-xl-base-1.0",
@@ -51,7 +53,7 @@ def main():
             captions,
             lora_out,
             prefix=prefixLora,
-            lora="./models/edgar_payne_lora/edgar_payne_lora.safetensors",
+            lora=loraPath,
             lora_scale=0.8,
             seed=seed,
             **common,

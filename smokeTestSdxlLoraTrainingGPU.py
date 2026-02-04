@@ -1,13 +1,7 @@
 #!/usr/bin/env python3
 """
-SDXL LoRA smoke test (CPU/GPU friendly, cluster-safe).
+SDXL LoRA smoke test CPU/GPU friendly.
 
-Defaults:
-- Tiny random SDXL model
-- 1 training step
-- 64x64 resolution
-- batch size 1
-- saves LoRA to ./smoke_out/ckpt and reloads into a fresh pipeline
 
 Environment variables:
   SMOKE_MODEL           default: dg845/tiny-random-stable-diffusion-xl
@@ -103,9 +97,6 @@ def main() -> None:
 
     set_seed(0)
 
-    # -------------------------
-    # Load pipeline
-    # -------------------------
     if accelerator.is_local_main_process:
         print("Loading pipeline…")
 
@@ -116,7 +107,6 @@ def main() -> None:
         local_files_only=local_files_only,
     )
 
-    # xFormers is optional; avoid hard fail
     if is_cuda:
         try:
             pipe.enable_xformers_memory_efficient_attention()

@@ -33,9 +33,6 @@ def safe_filename(name: str) -> str:
     return name
 
 def get_category_files(session: requests.Session, api: str, category: str, limit: int = 200, sleep_s: float = 0.2):
-    """
-    Returns a list of file titles like: 'File:Some_image.jpg'
-    """
     titles = []
     cmcontinue = None
 
@@ -70,10 +67,6 @@ def get_category_files(session: requests.Session, api: str, category: str, limit
     return titles
 
 def get_imageinfo(session: requests.Session,api: str, file_titles, batch_size: int = 50, sleep_s: float = 0.2):
-    """
-    Batch request for imageinfo: url + extmetadata.
-    Returns dict: title -> imageinfo dict
-    """
     out = {}
 
     for i in range(0, len(file_titles), batch_size):
@@ -103,10 +96,6 @@ def get_imageinfo(session: requests.Session,api: str, file_titles, batch_size: i
     return out
 
 def license_is_allowed(extmeta: dict) -> bool:
-    """
-    Conservative filter: allow Public Domain and Creative Commons licenses.
-    This is a heuristic, not legal advice.
-    """
     if not extmeta:
         return False
 
@@ -124,9 +113,6 @@ def license_is_allowed(extmeta: dict) -> bool:
     return any(m in text for m in allowed_markers)
 
 def download_file(session: requests.Session, url: str, out_path: str, timeout: int = 180):
-    """
-    Stream download to disk.
-    """
     with session.get(url, stream=True, timeout=timeout) as r:
         if r.status_code != 200:
             raise RuntimeError(f"Download error {r.status_code}: {url}")
